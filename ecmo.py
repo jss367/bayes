@@ -16,122 +16,50 @@ plt.rcParams.update({'font.size': 11})
 # Study 2: 9 conventional (4 died, 5 survived), 9 ECMO (all survived)
 # Study 2 Phase 2: 20 ECMO (19 survived, 1 died)
 
-# Define the data
-conventional_total = 1 + 2 + 9  # Total conventional treatment
-conventional_deaths = 1 + 2 + 4  # Total deaths from conventional treatment
-conventional_survived = conventional_total - conventional_deaths
-
-ecmo_total = 11 + 8 + 9 + 20  # Total ECMO treatment
-ecmo_deaths = 0 + 0 + 0 + 1  # Total deaths from ECMO treatment
-ecmo_survived = ecmo_total - ecmo_deaths
-
-# Sequential outcomes for plotting the adaptive trial process
-treatments = [
-    'Conv',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'Conv',
-    'Conv',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'Conv',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
-    'ECMO',
+# Define the study data in a more structured format
+study_data = [
+    {"name": "Study 1", "conventional": {"total": 1, "survived": 0}, "ecmo": {"total": 11, "survived": 11}},
+    {"name": "After Study 1", "conventional": {"total": 2, "survived": 0}, "ecmo": {"total": 8, "survived": 8}},
+    {"name": "Study 2", "conventional": {"total": 9, "survived": 5}, "ecmo": {"total": 9, "survived": 9}},
+    {"name": "Study 2 Phase 2", "conventional": {"total": 0, "survived": 0}, "ecmo": {"total": 20, "survived": 19}},
 ]
 
-outcomes = [
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    0,
-    0,
-    0,
-    0,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    1,
-    0,
-]  # 1 = survived, 0 = died
+# Calculate totals from the structured data
+conventional_total = sum(study["conventional"]["total"] for study in study_data)
+conventional_survived = sum(study["conventional"]["survived"] for study in study_data)
+conventional_deaths = conventional_total - conventional_survived
+
+ecmo_total = sum(study["ecmo"]["total"] for study in study_data)
+ecmo_survived = sum(study["ecmo"]["survived"] for study in study_data)
+ecmo_deaths = ecmo_total - ecmo_survived
+
+# Generate treatments and outcomes lists programmatically
+treatments = []
+outcomes = []
+
+
+# Function to add patients to the lists
+def add_patients(treatment_type, total, survived):
+    for i in range(total):
+        treatments.append(treatment_type)
+        # 1 = survived, 0 = died
+        outcomes.append(1 if i < survived else 0)
+
+
+# Add patients from each study in sequence
+for study in study_data:
+    # Add conventional patients
+    add_patients('Conv', study["conventional"]["total"], study["conventional"]["survived"])
+    # Add ECMO patients
+    add_patients('ECMO', study["ecmo"]["total"], study["ecmo"]["survived"])
+
+
+def beta_params(mean, std):
+    """Convert mean and std to alpha and beta parameters of Beta distribution"""
+    variance = std**2
+    alpha = mean * (mean * (1 - mean) / variance - 1)
+    beta = (1 - mean) * (mean * (1 - mean) / variance - 1)
+    return alpha, beta
 
 
 def plot_raw_results():
@@ -212,14 +140,6 @@ def plot_frequentist_perspective():
     return fig
 
 
-def beta_params(mean, std):
-    """Convert mean and std to alpha and beta parameters of Beta distribution"""
-    variance = std**2
-    alpha = mean * (mean * (1 - mean) / variance - 1)
-    beta = (1 - mean) * (mean * (1 - mean) / variance - 1)
-    return alpha, beta
-
-
 def plot_bayesian_perspective():
     """Plot 3: Bayesian Perspective"""
     fig, ax = plt.subplots(figsize=(10, 6))
@@ -237,14 +157,13 @@ def plot_bayesian_perspective():
 
     # Calculate posterior distributions
     x = np.linspace(0, 1, 1000)
-    conv_prior = stats.beta.pdf(x, prior_alpha, prior_beta)
-    ecmo_prior = stats.beta.pdf(x, prior_alpha, prior_beta)
+    prior_dist = stats.beta.pdf(x, prior_alpha, prior_beta)
 
     conv_posterior = stats.beta.pdf(x, conv_alpha, conv_beta)
     ecmo_posterior = stats.beta.pdf(x, ecmo_alpha, ecmo_beta)
 
     # Plot the Bayesian analysis
-    ax.plot(x, conv_prior, 'lightcoral', linestyle='--', label='Prior (both treatments)')
+    ax.plot(x, prior_dist, 'lightcoral', linestyle='--', label='Prior (both treatments)')
     ax.plot(x, conv_posterior, 'firebrick', label='Posterior: Conventional')
     ax.plot(x, ecmo_posterior, 'forestgreen', label='Posterior: ECMO')
 
@@ -308,19 +227,8 @@ def plot_adaptive_trial_perspective():
         elif treat == 'Conv' and outcome == 0:
             pass  # Conv loss, no adjustment
 
-        total_trials = i + 1
         ecmo_count = treatments[: i + 1].count('ECMO')
         conv_count = treatments[: i + 1].count('Conv')
-
-        if ecmo_count > 0:
-            ecmo_success_rate = ecmo_wins / ecmo_count
-        else:
-            ecmo_success_rate = 0
-
-        if conv_count > 0:
-            conv_success_rate = conv_wins / conv_count
-        else:
-            conv_success_rate = 0
 
         # Calculate probability of selecting ECMO as better (simplified)
         if ecmo_count > 0 and conv_count > 0:
