@@ -17,8 +17,8 @@ plt.rcParams.update({'font.size': 11})
 
 # Define the study data in a more structured format
 study_data = [
-    {"name": "Study 1", "conventional": {"total": 1, "survived": 0}, "ecmo": {"total": 11, "survived": 11}},
-    {"name": "Study 2", "conventional": {"total": 10, "survived": 6}, "ecmo": {"total": 29, "survived": 28}},
+    {"name": "Bartlett 1985", "conventional": {"total": 1, "survived": 0}, "ecmo": {"total": 11, "survived": 11}},
+    {"name": "O'Rourke 1989", "conventional": {"total": 10, "survived": 6}, "ecmo": {"total": 29, "survived": 28}},
 ]
 
 
@@ -840,7 +840,7 @@ def main():
 
     # Create perspective comparison plots for various study combinations
     study_combinations = [
-        {'indices': [0], 'name': 'study1_only'},
+        {'indices': [0], 'name': 'bartlett1985_only'},
         {'indices': [1], 'name': 'study2_only'},
         {'indices': [0, 1], 'name': 'all_studies'},
     ]
