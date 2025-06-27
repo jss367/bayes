@@ -618,9 +618,8 @@ def plot_perspective_comparison(study_indices=None):
     ecmo_total = sum(study["ecmo"]["total"] for study in study_data_subset)
     ecmo_survived = sum(study["ecmo"]["survived"] for study in study_data_subset)
 
-    # Set up the figure with two subplots
-    fig = plt.figure(figsize=(12, 10))
-    gs = gridspec.GridSpec(2, 1, height_ratios=[1, 1.5])
+    # Create a single-panel figure for posterior distributions only
+    fig, ax1 = plt.subplots(figsize=(12, 6))
 
     # Set a consistent style
     plt.style.use('seaborn-v0_8-pastel')
@@ -650,8 +649,7 @@ def plot_perspective_comparison(study_indices=None):
     ecmo_samples = stats.beta(ecmo_posterior_alpha, ecmo_posterior_beta).rvs(samples)
     prob_ecmo_better = np.mean(ecmo_samples > conventional_samples)
 
-    # First subplot - Posterior distributions
-    ax1 = plt.subplot(gs[0])
+    # Plot the posterior distributions
     ax1.plot(p, prior, '--', color='gray', alpha=0.7, label='Prior belief (uninformative)')
     ax1.plot(
         p,
@@ -697,125 +695,8 @@ def plot_perspective_comparison(study_indices=None):
     ax1.set_xlim(0, 1)
     ax1.set_ylim(0, 5)
 
-    # Second subplot - Different statistical perspectives
-    perspectives = ['Frequentist', 'Bayesian', 'Adaptive Trial', 'Medical Ethics']
-
-    # Calculate a statistical significance p-value for frequentist perspective
-    if conventional_total > 0 and ecmo_total > 0:
-        # Create contingency table
-        conv_deaths = conventional_total - conventional_survived
-        ecmo_deaths = ecmo_total - ecmo_survived
-        contingency_table = [[conventional_survived, conv_deaths], [ecmo_survived, ecmo_deaths]]
-        _, p_value = stats.fisher_exact(contingency_table)
-    else:
-        p_value = 1.0
-
-    # Calculate confidence values dynamically based on the data
-    # 1. Frequentist confidence based on p-value and sample sizes
-    if p_value < 0.01:
-        freq_confidence = 0.95  # Very significant
-    elif p_value < 0.05:
-        freq_confidence = 0.85  # Significant
-    elif p_value < 0.1:
-        freq_confidence = 0.7  # Marginally significant
-    else:
-        # Adjust for small sample sizes
-        if conventional_total < 5:
-            # Very small control group
-            freq_confidence = 0.35
-        elif conventional_total < 10:
-            # Small control group
-            freq_confidence = 0.45
-        else:
-            # Adequate sample size but not significant
-            freq_confidence = 0.55
-
-    # 2. Bayesian confidence is directly from the posterior probability
-    bayes_confidence = prob_ecmo_better
-
-    # 3. Adaptive trial confidence - based on the strength of evidence and sample size
-    adaptive_confidence = min(0.95, 0.6 + (prob_ecmo_better - 0.5) * 1.2)
-
-    # 4. Medical ethics confidence - based on survival rate differences and sample size
-    conv_survival_rate = conventional_survived / conventional_total if conventional_total > 0 else 0
-    ecmo_survival_rate = ecmo_survived / ecmo_total if ecmo_total > 0 else 0
-
-    # If ECMO is clearly better, ethical concerns rise
-    survival_diff = ecmo_survival_rate - conv_survival_rate
-    if survival_diff > 0.5:
-        ethics_confidence = 0.95  # Very clear difference
-    elif survival_diff > 0.3:
-        ethics_confidence = 0.85  # Clear difference
-    else:
-        ethics_confidence = 0.7  # Moderate difference
-
-    # Adjust based on sample sizes
-    if conventional_total < 5 and ecmo_total < 10:
-        # Too small to be confident
-        ethics_confidence = min(ethics_confidence, 0.8)
-
-    # Final confidence values
-    confidence = [freq_confidence, bayes_confidence, adaptive_confidence, ethics_confidence]
-
-    # Generate conclusions based on the data
-    conclusions = [
-        f'{"Significant" if p_value < 0.05 else "Insufficient evidence"} with p={p_value:.3f}\n'
-        f'Based on {conventional_total + ecmo_total} total patients',
-        f'{prob_ecmo_better:.1%} probability that\nECMO is better than conventional treatment',
-        f'{"Strong" if adaptive_confidence > 0.8 else "Moderate"} signal to '
-        f'{"favor ECMO" if adaptive_confidence > 0.7 else "continue testing"}',
-        f'{"High" if ethics_confidence > 0.8 else "Some"} ethical concerns about\n'
-        f'continuing to randomize to conventional',
-    ]
-
-    colors = ['#E74C3C', '#3498DB', '#2ECC71', '#9B59B6']
-
-    ax2 = plt.subplot(gs[1])
-
-    # Create bars
-    bars = ax2.barh(perspectives, confidence, color=colors, alpha=0.7)
-
-    # Add percentage labels
-    for i, (bar, conf) in enumerate(zip(bars, confidence)):
-        ax2.text(conf + 0.02, i, f'{conf:.0%}', va='center')
-
-        # Add conclusion text
-        ax2.text(
-            0.5,
-            i,
-            conclusions[i],
-            ha='center',
-            va='center',
-            bbox=dict(facecolor='white', alpha=0.7, boxstyle='round,pad=0.5'),
-        )
-
-    # Customize the plot
-    ax2.set_xlim(0, 1.1)
-    ax2.set_xlabel('Confidence that ECMO is superior')
-    ax2.set_title('Different Perspectives on ECMO Trial Results', fontsize=14)
-    ax2.spines['top'].set_visible(False)
-    ax2.spines['right'].set_visible(False)
-    ax2.set_axisbelow(True)
-    ax2.grid(axis='x', alpha=0.3)
-
-    # Add title with included studies
-    title = 'Perspective Comparison on ECMO Trial Results'
-    if study_indices is not None:
-        included_studies = [study_data[i]["name"] for i in study_indices]
-        fig.suptitle(title + "\nIncluded Studies: " + ', '.join(included_studies), fontsize=16)
-    else:
-        fig.suptitle(title, fontsize=16)
-
-    # Add annotations for context
-    study_text = (
-        f'Note: The data includes {conventional_total} conventional treatment patients '
-        f'({conventional_survived} survived) and {ecmo_total} ECMO treatment patients ({ecmo_survived} survived).'
-    )
-    plt.figtext(0.5, 0.01, study_text, ha='center', fontsize=10, bbox=dict(facecolor='lightyellow', alpha=0.5))
-
+    # Final layout and return
     plt.tight_layout()
-    plt.subplots_adjust(top=0.9, bottom=0.08)
-
     return fig
 
 
